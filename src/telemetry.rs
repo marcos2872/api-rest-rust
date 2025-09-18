@@ -34,6 +34,7 @@ pub fn init_telemetry() {
     // Create a tracing subscriber
     let subscriber = Registry::default()
         // .with(EnvFilter::new("info"))
+        .with(EnvFilter::from_default_env().add_directive("sqlx::query=trace".parse().unwrap()))
         .with(layer().with_tracer(tracer));
 
     set_global_default(subscriber).expect("Failed to set global default subscriber");
