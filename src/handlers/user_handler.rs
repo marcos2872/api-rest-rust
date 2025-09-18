@@ -87,11 +87,24 @@ pub async fn register_user(
     }
 }
 
-// Listar usuários com paginação e busca
+// Listar usuários com paginação e busca (protegida por JWT - apenas admins)
 pub async fn list_users(
     pool: web::Data<PgPool>,
     query: web::Query<UserQueryParams>,
+    req: HttpRequest,
 ) -> Result<HttpResponse> {
+    // Extrair claims do token JWT e verificar se é admin
+    if let Some(claims) = get_claims_from_http_request(&req) {
+        if !claims.is_admin() {
+            return Ok(HttpResponse::Forbidden().json(serde_json::json!({
+                "error": "Acesso negado. Apenas administradores podem listar usuários."
+            })));
+        }
+    } else {
+        return Ok(HttpResponse::Unauthorized().json(serde_json::json!({
+            "error": "Token JWT não encontrado"
+        })));
+    }
     let page = query.page.unwrap_or(1).max(1);
     let per_page = query.per_page.unwrap_or(10).min(100).max(1);
     let offset = (page - 1) * per_page;
@@ -547,7 +560,6 @@ pub fn config(cfg: &mut web::ServiceConfig) {
 
     cfg.service(
         web::scope("/users")
-            .route("", web::get().to(list_users)) // GET /users - Listar usuários (público)
             .route("", web::post().to(register_user)) // POST /users - Criar usuário (público)
             .route("/register", web::post().to(register_user)) // POST /users/register - Alias para criar (público)
             .service(
@@ -564,6 +576,7 @@ pub fn config(cfg: &mut web::ServiceConfig) {
             .service(
                 web::scope("")
                     .wrap(HttpAuthentication::bearer(admin_required))
+                    .route("", web::get().to(list_users)) // GET /users - Listar usuários (Admin)
                     .route("/{id}", web::delete().to(delete_user)), // DELETE /users/{id} - Deletar usuário (Admin)
             )
             .service(

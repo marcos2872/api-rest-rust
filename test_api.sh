@@ -350,34 +350,44 @@ else
     echo "Response: $(cat /tmp/register2_response.json 2>/dev/null || echo 'No response')"
 fi
 
-# Test 9: List all users
+# Test 9: List all users with admin token
 echo ""
-print_info "Test 9: List all users"
-response=$(curl -s -w "%{http_code}" -o /tmp/list_users_response.json \
-    "$BASE_URL/api/v1/users")
-http_code="${response: -3}"
+print_info "Test 9: List all users with admin token"
+if [ -n "$ADMIN_TOKEN" ]; then
+    response=$(curl -s -w "%{http_code}" -o /tmp/list_users_response.json \
+        -H "Authorization: Bearer $ADMIN_TOKEN" \
+        "$BASE_URL/api/v1/users")
+    http_code="${response: -3}"
 
-if [ "$http_code" -eq 200 ]; then
-    print_status 0 "List users passed (HTTP $http_code)"
-    echo "Response: $(cat /tmp/list_users_response.json)"
+    if [ "$http_code" -eq 200 ]; then
+        print_status 0 "List users with admin token passed (HTTP $http_code)"
+        echo "Response: $(cat /tmp/list_users_response.json)"
+    else
+        print_status 1 "List users with admin token failed (HTTP $http_code)"
+        echo "Response: $(cat /tmp/list_users_response.json 2>/dev/null || echo 'No response')"
+    fi
 else
-    print_status 1 "List users failed (HTTP $http_code)"
-    echo "Response: $(cat /tmp/list_users_response.json 2>/dev/null || echo 'No response')"
+    print_status 1 "List users with admin token skipped - no admin token available"
 fi
 
-# Test 10: List users with pagination
+# Test 10: List users with pagination (admin token)
 echo ""
-print_info "Test 10: List users with pagination"
-response=$(curl -s -w "%{http_code}" -o /tmp/list_paginated_response.json \
-    "$BASE_URL/api/v1/users?page=1&per_page=1")
-http_code="${response: -3}"
+print_info "Test 10: List users with pagination (admin token)"
+if [ -n "$ADMIN_TOKEN" ]; then
+    response=$(curl -s -w "%{http_code}" -o /tmp/list_paginated_response.json \
+        -H "Authorization: Bearer $ADMIN_TOKEN" \
+        "$BASE_URL/api/v1/users?page=1&per_page=1")
+    http_code="${response: -3}"
 
-if [ "$http_code" -eq 200 ]; then
-    print_status 0 "List users with pagination passed (HTTP $http_code)"
-    echo "Response: $(cat /tmp/list_paginated_response.json)"
+    if [ "$http_code" -eq 200 ]; then
+        print_status 0 "List users with pagination and admin token passed (HTTP $http_code)"
+        echo "Response: $(cat /tmp/list_paginated_response.json)"
+    else
+        print_status 1 "List users with pagination and admin token failed (HTTP $http_code)"
+        echo "Response: $(cat /tmp/list_paginated_response.json 2>/dev/null || echo 'No response')"
+    fi
 else
-    print_status 1 "List users with pagination failed (HTTP $http_code)"
-    echo "Response: $(cat /tmp/list_paginated_response.json 2>/dev/null || echo 'No response')"
+    print_status 1 "List users with pagination skipped - no admin token available"
 fi
 
 # Test 11: Get current user data with JWT token
@@ -540,19 +550,24 @@ else
     print_status 1 "Invalid token test skipped - no user ID available"
 fi
 
-# Test 18: Search users
+# Test 18: Search users with admin token
 echo ""
-print_info "Test 18: Search users"
-response=$(curl -s -w "%{http_code}" -o /tmp/search_users_response.json \
-    "$BASE_URL/api/v1/users?search=João")
-http_code="${response: -3}"
+print_info "Test 18: Search users with admin token"
+if [ -n "$ADMIN_TOKEN" ]; then
+    response=$(curl -s -w "%{http_code}" -o /tmp/search_users_response.json \
+        -H "Authorization: Bearer $ADMIN_TOKEN" \
+        "$BASE_URL/api/v1/users?search=João")
+    http_code="${response: -3}"
 
-if [ "$http_code" -eq 200 ]; then
-    print_status 0 "Search users passed (HTTP $http_code)"
-    echo "Response: $(cat /tmp/search_users_response.json)"
+    if [ "$http_code" -eq 200 ]; then
+        print_status 0 "Search users with admin token passed (HTTP $http_code)"
+        echo "Response: $(cat /tmp/search_users_response.json)"
+    else
+        print_status 1 "Search users with admin token failed (HTTP $http_code)"
+        echo "Response: $(cat /tmp/search_users_response.json 2>/dev/null || echo 'No response')"
+    fi
 else
-    print_status 1 "Search users failed (HTTP $http_code)"
-    echo "Response: $(cat /tmp/search_users_response.json 2>/dev/null || echo 'No response')"
+    print_status 1 "Search users with admin token skipped - no admin token available"
 fi
 
 # Test 19: Get non-existent user (should fail)
@@ -690,9 +705,29 @@ else
     echo "Response: $(cat /tmp/malformed_token_response.json 2>/dev/null || echo 'No response')"
 fi
 
-# Test 26: Try to access admin-only route with regular user token (should fail)
+# Test 26: Try to list users with regular user token (should fail)
 echo ""
-print_info "Test 26: Try to delete user with regular user token (should fail)"
+print_info "Test 26: Try to list users with regular user token (should fail)"
+if [ -n "$JWT_TOKEN" ]; then
+    response=$(curl -s -w "%{http_code}" -o /tmp/regular_user_list_response.json \
+        -H "Authorization: Bearer $JWT_TOKEN" \
+        "$BASE_URL/api/v1/users")
+    http_code="${response: -3}"
+
+    if [ "$http_code" -eq 403 ]; then
+        print_status 0 "Regular user list access denied validation passed (HTTP $http_code)"
+        echo "Response: $(cat /tmp/regular_user_list_response.json)"
+    else
+        print_status 1 "Regular user list access denied validation failed - expected HTTP 403, got HTTP $http_code"
+        echo "Response: $(cat /tmp/regular_user_list_response.json 2>/dev/null || echo 'No response')"
+    fi
+else
+    print_status 1 "Regular user list access test skipped - no JWT token available"
+fi
+
+# Test 27: Try to delete user with regular user token (should fail)
+echo ""
+print_info "Test 27: Try to delete user with regular user token (should fail)"
 if [ -n "$JWT_TOKEN" ] && [ -n "$USER_ID2" ]; then
     response=$(curl -s -w "%{http_code}" -o /tmp/regular_user_delete_response.json \
         -X DELETE "$BASE_URL/api/v1/users/$USER_ID2" \
@@ -700,14 +735,14 @@ if [ -n "$JWT_TOKEN" ] && [ -n "$USER_ID2" ]; then
     http_code="${response: -3}"
 
     if [ "$http_code" -eq 403 ]; then
-        print_status 0 "Regular user admin access denied validation passed (HTTP $http_code)"
+        print_status 0 "Regular user delete access denied validation passed (HTTP $http_code)"
         echo "Response: $(cat /tmp/regular_user_delete_response.json)"
     else
-        print_status 1 "Regular user admin access denied validation failed - expected HTTP 403, got HTTP $http_code"
+        print_status 1 "Regular user delete access denied validation failed - expected HTTP 403, got HTTP $http_code"
         echo "Response: $(cat /tmp/regular_user_delete_response.json 2>/dev/null || echo 'No response')"
     fi
 else
-    print_status 1 "Regular user admin access test skipped - no JWT token or user ID available"
+    print_status 1 "Regular user delete access test skipped - no JWT token or user ID available"
 fi
 
 echo ""
@@ -773,7 +808,7 @@ rm -f /tmp/get_fake_user_response.json /tmp/delete_user_response.json /tmp/delet
 rm -f /tmp/admin_login_response.json /tmp/user_login_response.json /tmp/invalid_login_response.json
 rm -f /tmp/verify_token_response.json /tmp/get_current_user_response.json /tmp/get_user_no_auth_response.json
 rm -f /tmp/update_user_no_auth_response.json /tmp/invalid_token_response.json /tmp/delete_user_forbidden_response.json
-rm -f /tmp/malformed_token_response.json /tmp/regular_user_delete_response.json
+rm -f /tmp/malformed_token_response.json /tmp/regular_user_list_response.json /tmp/regular_user_delete_response.json
 
 echo ""
 print_info "Temporary test files cleaned up"

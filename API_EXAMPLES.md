@@ -84,22 +84,32 @@ Obter lista paginada de usuários.
 curl -X GET http://localhost:8080/api/v1/users
 ```
 
-#### Com paginação personalizada
+#### Com paginação personalizada (Admin)
 ```bash
-curl -X GET "http://localhost:8080/api/v1/users?page=2&per_page=5"
+curl -H "Authorization: Bearer YOUR_ADMIN_JWT_TOKEN" \
+  "http://localhost:8080/api/v1/users?page=2&per_page=5"
 ```
 
-#### Com busca por nome ou email
+#### Com busca por nome ou email (Admin)
 ```bash
-curl -X GET "http://localhost:8080/api/v1/users?search=Ana"
+curl -H "Authorization: Bearer YOUR_ADMIN_JWT_TOKEN" \
+  "http://localhost:8080/api/v1/users?search=Ana"
 ```
 
-#### Busca com paginação
+#### Busca com paginação (Admin)
 ```bash
-curl -X GET "http://localhost:8080/api/v1/users?page=1&per_page=3&search=Silva"
+curl -H "Authorization: Bearer YOUR_ADMIN_JWT_TOKEN" \
+  "http://localhost:8080/api/v1/users?page=1&per_page=3&search=Silva"
+```
+### GET /api/v1/users (Apenas Administradores)
+
+**Request:**
+```bash
+curl -H "Authorization: Bearer YOUR_ADMIN_JWT_TOKEN" \
+  http://localhost:8080/api/v1/users
 ```
 
-**Resposta (200):**
+**Response (200 OK):**
 ```json
 {
   "users": [
@@ -107,6 +117,7 @@ curl -X GET "http://localhost:8080/api/v1/users?page=1&per_page=3&search=Silva"
       "id": "f47ac10b-58cc-4372-a567-0e02b2c3d479",
       "nome": "Ana Silva",
       "email": "ana.silva@email.com",
+      "role": "USER",
       "created_at": "2023-12-01T14:30:00Z",
       "updated_at": "2023-12-01T14:30:00Z"
     },
@@ -114,6 +125,7 @@ curl -X GET "http://localhost:8080/api/v1/users?page=1&per_page=3&search=Silva"
       "id": "6ba7b810-9dad-11d1-80b4-00c04fd430c8",
       "nome": "Carlos Santos",
       "email": "carlos@email.com",
+      "role": "USER",
       "created_at": "2023-12-01T15:00:00Z",
       "updated_at": "2023-12-01T15:00:00Z"
     }
@@ -122,6 +134,13 @@ curl -X GET "http://localhost:8080/api/v1/users?page=1&per_page=3&search=Silva"
   "page": 1,
   "per_page": 10,
   "total_pages": 3
+}
+```
+
+**Response (403 Forbidden) - Usuário comum tentando acessar:**
+```json
+{
+  "error": "Acesso negado. Apenas administradores podem listar usuários."
 }
 ```
 

@@ -138,12 +138,12 @@ As seguintes rotas requerem autenticação Bearer Token:
 - `GET /api/v1/users/me` - Dados do usuário logado
 
 **👑 Apenas Administradores:**
+- `GET /api/v1/users` - Listar usuários
 - `DELETE /api/v1/users/{id}` - Deletar usuário
 
 **📋 Rotas Públicas (sem autenticação):**
 - `POST /api/v1/auth/login` - Login
 - `POST /api/v1/users` - Criar usuário
-- `GET /api/v1/users` - Listar usuários
 - `GET /health` - Health check
 
 ### 🚦 Rate Limiting
@@ -404,16 +404,19 @@ curl -X POST http://localhost:8080/api/v1/users \
   }'
 ```
 
-#### Listar usuários
+#### Listar usuários (requer JWT de Admin)
 ```bash
-# Listar todos
-curl http://localhost:8080/api/v1/users
+# Listar todos (precisa ser admin)
+curl -H "Authorization: Bearer YOUR_ADMIN_JWT_TOKEN" \
+  http://localhost:8080/api/v1/users
 
-# Com paginação
-curl "http://localhost:8080/api/v1/users?page=1&per_page=5"
+# Com paginação (precisa ser admin)
+curl -H "Authorization: Bearer YOUR_ADMIN_JWT_TOKEN" \
+  "http://localhost:8080/api/v1/users?page=1&per_page=5"
 
-# Com busca
-curl "http://localhost:8080/api/v1/users?search=João"
+# Com busca (precisa ser admin)
+curl -H "Authorization: Bearer YOUR_ADMIN_JWT_TOKEN" \
+  "http://localhost:8080/api/v1/users?search=João"
 ```
 
 #### Buscar usuário por ID (requer JWT)

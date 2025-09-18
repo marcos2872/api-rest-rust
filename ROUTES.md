@@ -73,7 +73,6 @@ Renovar um token JWT válido.
 ### 🔓 Rotas Públicas (sem autenticação)
 - `POST /api/v1/users` - Criar usuário
 - `POST /api/v1/users/register` - Criar usuário (alias)
-- `GET /api/v1/users` - Listar usuários
 
 ### 🔑 Rotas Protegidas (requer JWT)
 - `GET /api/v1/users/{id}` - Buscar usuário por ID
@@ -82,6 +81,7 @@ Renovar um token JWT válido.
 - `GET /api/v1/users/me` - Dados do usuário logado
 
 ### 👑 Rotas Admin (requer JWT de Admin)
+- `GET /api/v1/users` - Listar usuários
 - `DELETE /api/v1/users/{id}` - Deletar usuário
 
 ### POST /api/v1/users
@@ -104,8 +104,13 @@ Criar um novo usuário.
 
 ---
 
-### GET /api/v1/users 🔓
-Listar usuários com paginação e busca. **Rota pública.**
+### GET /api/v1/users 👑
+Listar usuários com paginação e busca. **Requer JWT de administrador.**
+
+**Headers:**
+```
+Authorization: Bearer {admin_jwt_token}
+```
 
 **Query Parameters:**
 - `page`: Número da página (padrão: 1)
@@ -120,8 +125,13 @@ GET /api/v1/users?search=João
 GET /api/v1/users?page=1&per_page=3&search=Silva
 ```
 
+**Permissões:**
+- Apenas administradores podem listar usuários
+
 **Respostas:**
 - **200 OK:** Lista de usuários com metadados de paginação
+- **401 Unauthorized:** Token inválido ou ausente
+- **403 Forbidden:** Usuário não é administrador
 
 ---
 
@@ -321,8 +331,9 @@ curl -X POST http://localhost:8080/api/v1/users \
   -H "Content-Type: application/json" \
   -d '{"nome":"João","email":"joao@test.com","senha":"123456","role":"USER"}'
 
-# Listar usuários (público)
-curl http://localhost:8080/api/v1/users
+# Listar usuários (requer JWT de Admin)
+curl -H "Authorization: Bearer {admin_token}" \
+  http://localhost:8080/api/v1/users
 
 # Buscar usuário atual (requer JWT)
 curl -H "Authorization: Bearer {token}" \
@@ -368,6 +379,7 @@ make api-test
 10. **Bearer Token:** Formato `Authorization: Bearer {token}`
 11. **Permissões:** Usuários comuns só acessam seus dados, admins acessam todos
 12. **Middleware:** Rotas protegidas validam JWT automaticamente
+13. **Listagem de Usuários:** Apenas administradores podem listar todos os usuários
 
 ## 🔐 Símbolos de Autenticação
 
