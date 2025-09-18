@@ -150,12 +150,12 @@ api-test:
 		echo "❌ Servidor não está rodando. Execute 'make run' primeiro"; \
 		exit 1; \
 	fi
-	@./test_api.sh
+	@./tests/test_api.sh
 
 # Executa diagnóstico da API
 api-diagnose:
 	@echo "🔍 Executando diagnóstico da API..."
-	@./test_api.sh --diagnose
+	@./tests/test_api.sh --diagnose
 
 # Executa testes de rate limiting
 rate-limit-test:
@@ -164,7 +164,7 @@ rate-limit-test:
 		echo "❌ Servidor não está rodando. Execute 'make run' primeiro"; \
 		exit 1; \
 	fi
-	@./test_rate_limit.sh
+	@./tests/test_rate_limit.sh
 
 # Monitora arquivos e reinicia automaticamente (requer cargo-watch)
 watch:
