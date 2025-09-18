@@ -582,29 +582,49 @@ pub fn config(cfg: &mut web::ServiceConfig) {
 
     cfg.service(
         web::scope("/users")
-            .route("", web::post().to(register_user)) // POST /users - Criar usuário (público)
-            .route("/register", web::post().to(register_user)) // POST /users/register - Alias para criar (público)
-            .service(
-                web::resource("/{id}/change-password")
-                    .route(web::patch().to(change_password)) // PATCH /users/{id}/change-password (JWT)
+            // Rotas públicas (sem autenticação)
+            .route("/register", web::post().to(register_user)) // POST /users/register - Criar usuário
+            // Rota /me deve vir antes de /{id} para evitar conflito de parsing
+            .route(
+                "/me",
+                web::get()
+                    .to(get_current_user)
                     .wrap(HttpAuthentication::bearer(jwt_validator)),
             )
-            .service(
-                web::scope("")
-                    .wrap(HttpAuthentication::bearer(jwt_validator))
-                    .route("/{id}", web::get().to(get_user)) // GET /users/{id} - Buscar usuário por ID (JWT)
-                    .route("/{id}", web::put().to(update_user)), // PUT /users/{id} - Atualizar usuário (JWT)
-            )
-            .service(
-                web::scope("")
-                    .wrap(HttpAuthentication::bearer(admin_required))
-                    .route("", web::get().to(list_users)) // GET /users - Listar usuários (Admin)
-                    .route("/{id}", web::delete().to(delete_user)), // DELETE /users/{id} - Deletar usuário (Admin)
-            )
-            .service(
-                web::resource("/me")
-                    .route(web::get().to(get_current_user)) // GET /users/me - Dados do usuário logado (JWT)
+            // Rota para mudança de senha
+            .route(
+                "/{id}/change-password",
+                web::patch()
+                    .to(change_password)
                     .wrap(HttpAuthentication::bearer(jwt_validator)),
+            )
+            // Rota para listar todos os usuários (requer admin)
+            .route(
+                "",
+                web::get()
+                    .to(list_users)
+                    .wrap(HttpAuthentication::bearer(admin_required)),
+            )
+            // Rota para criar usuário (público)
+            .route("", web::post().to(register_user))
+            // Rotas para operações em usuário específico
+            .route(
+                "/{id}",
+                web::get()
+                    .to(get_user)
+                    .wrap(HttpAuthentication::bearer(jwt_validator)),
+            )
+            .route(
+                "/{id}",
+                web::put()
+                    .to(update_user)
+                    .wrap(HttpAuthentication::bearer(jwt_validator)),
+            )
+            .route(
+                "/{id}",
+                web::delete()
+                    .to(delete_user)
+                    .wrap(HttpAuthentication::bearer(admin_required)),
             ),
     );
 }
