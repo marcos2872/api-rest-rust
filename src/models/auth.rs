@@ -49,7 +49,7 @@ impl Claims {
 
 #[derive(Clone)]
 pub struct JwtConfig {
-    pub secret: String,
+    // pub secret: String,
     pub expires_in_seconds: i64,
     pub encoding_key: EncodingKey,
     pub decoding_key: DecodingKey,
@@ -75,7 +75,7 @@ impl JwtConfig {
         let validation = Validation::default();
 
         Self {
-            secret,
+            // secret,
             expires_in_seconds,
             encoding_key,
             decoding_key,
@@ -95,6 +95,7 @@ impl JwtConfig {
 }
 
 #[derive(Debug, Serialize)]
+#[allow(dead_code)]
 pub struct TokenInfo {
     pub user_id: Uuid,
     pub email: String,

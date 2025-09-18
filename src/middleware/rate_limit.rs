@@ -33,10 +33,12 @@ impl RateLimitConfig {
         }
     }
 
+    #[allow(dead_code)]
     pub fn strict() -> Self {
         Self::new(30, 5)
     }
 
+    #[allow(dead_code)]
     pub fn lenient() -> Self {
         Self::new(120, 20)
     }
@@ -177,14 +179,17 @@ pub async fn rate_limit_middleware(
 }
 
 // Convenience functions
+#[allow(dead_code)]
 pub fn strict_rate_limiter() -> RateLimiter {
     RateLimiter::new(RateLimitConfig::strict())
 }
 
+#[allow(dead_code)]
 pub fn default_rate_limiter() -> RateLimiter {
     RateLimiter::new(RateLimitConfig::default())
 }
 
+#[allow(dead_code)]
 pub fn lenient_rate_limiter() -> RateLimiter {
     RateLimiter::new(RateLimitConfig::lenient())
 }
