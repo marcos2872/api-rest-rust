@@ -1,5 +1,4 @@
-use actix_web::{dev::ServiceRequest, Error, HttpMessage, HttpResponse};
-use actix_web::http::StatusCode;
+use actix_web::{dev::ServiceRequest, Error, HttpMessage};
 use actix_web_httpauth::extractors::bearer::{BearerAuth, Config};
 use actix_web_httpauth::extractors::AuthenticationError;
 
@@ -73,7 +72,12 @@ pub async fn admin_required(
             Err((Error::from(actix_web::error::ErrorForbidden("")), req))
         }
     } else {
-        Err((Error::from(actix_web::error::ErrorInternalServerError("Erro interno: claims não encontrados após a validação do token.".to_string())), req))
+        Err((
+            Error::from(actix_web::error::ErrorInternalServerError(
+                "Erro interno: claims não encontrados após a validação do token.".to_string(),
+            )),
+            req,
+        ))
     }
 }
 

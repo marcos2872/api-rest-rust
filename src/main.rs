@@ -1,11 +1,13 @@
-use actix_web::{middleware::Logger, web, App, HttpServer};
+use actix_web::{web, App, HttpServer};
 use dotenv::dotenv;
 use std::env;
+use tracing_actix_web::TracingLogger;
 
 mod config;
 mod handlers;
 mod middleware;
 mod models;
+mod telemetry;
 
 use config::database::{create_pool, run_migrations};
 use handlers::{auth_handler, user_handler};
@@ -17,8 +19,8 @@ async fn main() -> std::io::Result<()> {
     // Carregar variáveis de ambiente do arquivo .env
     dotenv().ok();
 
-    // Configurar logger
-    env_logger::init();
+    // Inicializar telemetria (tracing e métricas)
+    telemetry::init_telemetry();
 
     // Configurar conexão com o banco de dados
     let pool = create_pool()
@@ -75,7 +77,7 @@ async fn main() -> std::io::Result<()> {
             .app_data(web::Data::new(pool.clone()))
             .app_data(web::Data::new(jwt_config.clone()))
             .app_data(rate_limiter.clone())
-            .wrap(Logger::default())
+            .wrap(TracingLogger::default())
             .wrap(actix_web_lab::middleware::from_fn(rate_limit_middleware))
             .service(
                 web::scope("/api/v1")
