@@ -34,6 +34,30 @@ help:
 	@echo ""
 	@echo "🧪 Teste da API:"
 	@echo "  api-test    - Executa testes da API (requer servidor rodando)"
+	@echo "  api-diagnose - Executa diagnóstico automático da API"
+	@echo "  rate-limit-test - Testa funcionalidade de rate limiting"
+	@echo ""
+	@echo "📡 Endpoints disponíveis:"
+	@echo ""
+	@echo "🔓 Públicos (sem autenticação):"
+	@echo "  GET    /health                     - Health check"
+	@echo "  POST   /api/v1/auth/login          - Login (retorna JWT)"
+	@echo "  POST   /api/v1/users               - Criar usuário"
+	@echo "  GET    /api/v1/users               - Listar usuários (com paginação)"
+	@echo ""
+	@echo "🔑 Protegidos (requer JWT Bearer token):"
+	@echo "  GET    /api/v1/users/me            - Dados do usuário logado"
+	@echo "  GET    /api/v1/users/{id}          - Buscar usuário por ID"
+	@echo "  PUT    /api/v1/users/{id}          - Atualizar usuário"
+	@echo "  PATCH  /api/v1/users/{id}/change-password - Alterar senha"
+	@echo ""
+	@echo "👑 Admin (requer JWT de administrador):"
+	@echo "  DELETE /api/v1/users/{id}          - Deletar usuário"
+	@echo ""
+	@echo "🔐 Como usar:"
+	@echo "  1. Login: POST /api/v1/auth/login"
+	@echo "  2. Usar token: Authorization: Bearer {token}"
+	@echo "  3. Admin padrão: admin@sistema.com / admin123"
 
 # Instala dependências
 install:
@@ -127,6 +151,20 @@ api-test:
 		exit 1; \
 	fi
 	@./test_api.sh
+
+# Executa diagnóstico da API
+api-diagnose:
+	@echo "🔍 Executando diagnóstico da API..."
+	@./test_api.sh --diagnose
+
+# Executa testes de rate limiting
+rate-limit-test:
+	@echo "🚦 Testando rate limiting..."
+	@if ! curl -s http://localhost:8080/health >/dev/null; then \
+		echo "❌ Servidor não está rodando. Execute 'make run' primeiro"; \
+		exit 1; \
+	fi
+	@./test_rate_limit.sh
 
 # Monitora arquivos e reinicia automaticamente (requer cargo-watch)
 watch:
