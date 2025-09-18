@@ -21,6 +21,7 @@ async fn main() -> std::io::Result<()> {
 
     // Inicializar telemetria (tracing e métricas)
     telemetry::init_telemetry();
+    // env_logger::init();
 
     // Configurar conexão com o banco de dados
     let pool = create_pool()
