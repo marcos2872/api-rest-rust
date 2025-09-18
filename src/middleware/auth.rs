@@ -59,7 +59,10 @@ pub async fn admin_required(
     credentials: BearerAuth,
 ) -> Result<ServiceRequest, (Error, ServiceRequest)> {
     // Primeiro, validar o JWT
-    let req = jwt_validator(req, credentials).await?;
+    let req = match jwt_validator(req, credentials).await {
+        Ok(req) => req,
+        Err((err, req)) => return Err((err, req)),
+    };
 
     // Verificar se usuário é admin
     if let Some(claims) = get_claims_from_request(&req) {

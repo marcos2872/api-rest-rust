@@ -4,7 +4,10 @@ use chrono::Utc;
 use sqlx::PgPool;
 use uuid::Uuid;
 
-use crate::middleware::get_claims_from_http_request;
+use crate::middleware::{
+    bad_request_error, forbidden_error, get_claims_from_http_request, internal_server_error,
+    not_found_error, unauthorized_error,
+};
 use crate::models::{
     ChangePasswordRequest, CreateUserRequest, UpdateUserRequest, User, UserListResponse,
     UserQueryParams, UserResponse, UserRole,
@@ -22,18 +25,20 @@ pub async fn register_user(
 
     match existing_user {
         Ok(Some(_)) => {
-            return Ok(HttpResponse::BadRequest().json(serde_json::json!({
-                "error": "Email já está em uso"
-            })));
+            return Ok(bad_request_error(
+                "Email já está em uso",
+                "EMAIL_ALREADY_EXISTS",
+            ));
         }
         Ok(None) => {
             // Email disponível, continuar com o cadastro
         }
         Err(e) => {
             eprintln!("Erro ao verificar email: {:?}", e);
-            return Ok(HttpResponse::InternalServerError().json(serde_json::json!({
-                "error": "Erro interno do servidor"
-            })));
+            return Ok(internal_server_error(
+                "Erro interno do servidor",
+                "DATABASE_ERROR",
+            ));
         }
     }
 
@@ -42,9 +47,10 @@ pub async fn register_user(
         Ok(hashed) => hashed,
         Err(e) => {
             eprintln!("Erro ao fazer hash da senha: {:?}", e);
-            return Ok(HttpResponse::InternalServerError().json(serde_json::json!({
-                "error": "Erro interno do servidor"
-            })));
+            return Ok(internal_server_error(
+                "Erro interno do servidor",
+                "PASSWORD_HASH_ERROR",
+            ));
         }
     };
 
@@ -80,9 +86,10 @@ pub async fn register_user(
         }
         Err(e) => {
             eprintln!("Erro ao criar usuário: {:?}", e);
-            Ok(HttpResponse::InternalServerError().json(serde_json::json!({
-                "error": "Erro ao criar usuário"
-            })))
+            Ok(internal_server_error(
+                "Erro ao criar usuário",
+                "USER_CREATION_ERROR",
+            ))
         }
     }
 }
@@ -96,14 +103,16 @@ pub async fn list_users(
     // Extrair claims do token JWT e verificar se é admin
     if let Some(claims) = get_claims_from_http_request(&req) {
         if !claims.is_admin() {
-            return Ok(HttpResponse::Forbidden().json(serde_json::json!({
-                "error": "Acesso negado. Apenas administradores podem listar usuários."
-            })));
+            return Ok(forbidden_error(
+                "Acesso negado. Apenas administradores podem listar usuários.",
+                "ADMIN_REQUIRED",
+            ));
         }
     } else {
-        return Ok(HttpResponse::Unauthorized().json(serde_json::json!({
-            "error": "Token JWT não encontrado"
-        })));
+        return Ok(unauthorized_error(
+            "Token JWT não encontrado",
+            "TOKEN_MISSING",
+        ));
     }
     let page = query.page.unwrap_or(1).max(1);
     let per_page = query.per_page.unwrap_or(10).min(100).max(1);
@@ -134,9 +143,10 @@ pub async fn list_users(
         Ok(count) => count,
         Err(e) => {
             eprintln!("Erro ao contar usuários: {:?}", e);
-            return Ok(HttpResponse::InternalServerError().json(serde_json::json!({
-                "error": "Erro interno do servidor"
-            })));
+            return Ok(internal_server_error(
+                "Erro interno do servidor",
+                "DATABASE_ERROR",
+            ));
         }
     };
 
@@ -165,9 +175,10 @@ pub async fn list_users(
         Ok(users_vec) => users_vec,
         Err(e) => {
             eprintln!("Erro ao buscar usuários: {:?}", e);
-            return Ok(HttpResponse::InternalServerError().json(serde_json::json!({
-                "error": "Erro interno do servidor"
-            })));
+            return Ok(internal_server_error(
+                "Erro interno do servidor",
+                "DATABASE_ERROR",
+            ));
         }
     };
 
@@ -199,9 +210,10 @@ pub async fn get_user(
 
         // Verificar se usuário está tentando acessar seus próprios dados ou é admin
         if user_id != requesting_user_id && !claims.is_admin() {
-            return Ok(HttpResponse::Forbidden().json(serde_json::json!({
-                "error": "Acesso negado. Você só pode ver seus próprios dados."
-            })));
+            return Ok(forbidden_error(
+                "Acesso negado. Você só pode ver seus próprios dados.",
+                "ACCESS_DENIED",
+            ));
         }
     }
 
@@ -215,14 +227,13 @@ pub async fn get_user(
             let user_response = UserResponse::from(user);
             Ok(HttpResponse::Ok().json(user_response))
         }
-        Ok(None) => Ok(HttpResponse::NotFound().json(serde_json::json!({
-            "error": "Usuário não encontrado"
-        }))),
+        Ok(None) => Ok(not_found_error("Usuário não encontrado", "USER_NOT_FOUND")),
         Err(e) => {
             eprintln!("Erro ao buscar usuário: {:?}", e);
-            Ok(HttpResponse::InternalServerError().json(serde_json::json!({
-                "error": "Erro interno do servidor"
-            })))
+            Ok(internal_server_error(
+                "Erro interno do servidor",
+                "DATABASE_ERROR",
+            ))
         }
     }
 }
@@ -242,17 +253,19 @@ pub async fn update_user(
 
         // Verificar se usuário está tentando atualizar seus próprios dados ou é admin
         if user_id != requesting_user_id && !claims.is_admin() {
-            return Ok(HttpResponse::Forbidden().json(serde_json::json!({
-                "error": "Acesso negado. Você só pode atualizar seus próprios dados."
-            })));
+            return Ok(forbidden_error(
+                "Acesso negado. Você só pode atualizar seus próprios dados.",
+                "ACCESS_DENIED",
+            ));
         }
 
         // Verificar se usuário não-admin está tentando alterar role
         if let Some(ref new_role) = user_data.role {
             if !claims.is_admin() && *new_role != UserRole::User {
-                return Ok(HttpResponse::Forbidden().json(serde_json::json!({
-                    "error": "Apenas administradores podem alterar roles de usuário."
-                })));
+                return Ok(forbidden_error(
+                    "Apenas administradores podem alterar roles de usuário.",
+                    "ADMIN_REQUIRED",
+                ));
             }
         }
     }
@@ -266,15 +279,14 @@ pub async fn update_user(
     let current_user = match existing_user {
         Ok(Some(user)) => user,
         Ok(None) => {
-            return Ok(HttpResponse::NotFound().json(serde_json::json!({
-                "error": "Usuário não encontrado"
-            })));
+            return Ok(not_found_error("Usuário não encontrado", "USER_NOT_FOUND"));
         }
         Err(e) => {
             eprintln!("Erro ao buscar usuário: {:?}", e);
-            return Ok(HttpResponse::InternalServerError().json(serde_json::json!({
-                "error": "Erro interno do servidor"
-            })));
+            return Ok(internal_server_error(
+                "Erro interno do servidor",
+                "DATABASE_ERROR",
+            ));
         }
     };
 
@@ -290,18 +302,20 @@ pub async fn update_user(
 
             match email_exists {
                 Ok(Some(_)) => {
-                    return Ok(HttpResponse::BadRequest().json(serde_json::json!({
-                        "error": "Email já está em uso por outro usuário"
-                    })));
+                    return Ok(bad_request_error(
+                        "Email já está em uso por outro usuário",
+                        "EMAIL_ALREADY_EXISTS",
+                    ));
                 }
                 Ok(None) => {
                     // Email disponível
                 }
                 Err(e) => {
                     eprintln!("Erro ao verificar email: {:?}", e);
-                    return Ok(HttpResponse::InternalServerError().json(serde_json::json!({
-                        "error": "Erro interno do servidor"
-                    })));
+                    return Ok(internal_server_error(
+                        "Erro interno do servidor",
+                        "DATABASE_ERROR",
+                    ));
                 }
             }
         }
@@ -318,9 +332,10 @@ pub async fn update_user(
             Ok(hashed) => hashed,
             Err(e) => {
                 eprintln!("Erro ao fazer hash da senha: {:?}", e);
-                return Ok(HttpResponse::InternalServerError().json(serde_json::json!({
-                    "error": "Erro interno do servidor"
-                })));
+                return Ok(internal_server_error(
+                    "Erro interno do servidor",
+                    "PASSWORD_HASH_ERROR",
+                ));
             }
         }
     } else {
@@ -357,9 +372,10 @@ pub async fn update_user(
         }
         Err(e) => {
             eprintln!("Erro ao atualizar usuário: {:?}", e);
-            Ok(HttpResponse::InternalServerError().json(serde_json::json!({
-                "error": "Erro ao atualizar usuário"
-            })))
+            Ok(internal_server_error(
+                "Erro ao atualizar usuário",
+                "DATABASE_ERROR",
+            ))
         }
     }
 }
@@ -379,9 +395,10 @@ pub async fn change_password(
 
         // Verificar se usuário está tentando alterar sua própria senha ou é admin
         if user_id != requesting_user_id && !claims.is_admin() {
-            return Ok(HttpResponse::Forbidden().json(serde_json::json!({
-                "error": "Acesso negado. Você só pode alterar sua própria senha."
-            })));
+            return Ok(forbidden_error(
+                "Acesso negado. Você só pode alterar sua própria senha.",
+                "ACCESS_DENIED",
+            ));
         }
     }
 
@@ -394,15 +411,14 @@ pub async fn change_password(
     let user = match current_user {
         Ok(Some(user)) => user,
         Ok(None) => {
-            return Ok(HttpResponse::NotFound().json(serde_json::json!({
-                "error": "Usuário não encontrado"
-            })));
+            return Ok(not_found_error("Usuário não encontrado", "USER_NOT_FOUND"));
         }
         Err(e) => {
             eprintln!("Erro ao buscar usuário: {:?}", e);
-            return Ok(HttpResponse::InternalServerError().json(serde_json::json!({
-                "error": "Erro interno do servidor"
-            })));
+            return Ok(internal_server_error(
+                "Erro interno do servidor",
+                "DATABASE_ERROR",
+            ));
         }
     };
 
@@ -411,16 +427,18 @@ pub async fn change_password(
         Ok(valid) => valid,
         Err(e) => {
             eprintln!("Erro ao verificar senha: {:?}", e);
-            return Ok(HttpResponse::InternalServerError().json(serde_json::json!({
-                "error": "Erro interno do servidor"
-            })));
+            return Ok(internal_server_error(
+                "Erro interno do servidor",
+                "PASSWORD_VERIFICATION_ERROR",
+            ));
         }
     };
 
     if !password_valid {
-        return Ok(HttpResponse::BadRequest().json(serde_json::json!({
-            "error": "Senha atual incorreta"
-        })));
+        return Ok(bad_request_error(
+            "Senha atual incorreta",
+            "INVALID_PASSWORD",
+        ));
     }
 
     // Hash da nova senha
@@ -428,9 +446,10 @@ pub async fn change_password(
         Ok(hashed) => hashed,
         Err(e) => {
             eprintln!("Erro ao fazer hash da senha: {:?}", e);
-            return Ok(HttpResponse::InternalServerError().json(serde_json::json!({
-                "error": "Erro interno do servidor"
-            })));
+            return Ok(internal_server_error(
+                "Erro interno do servidor",
+                "PASSWORD_HASH_ERROR",
+            ));
         }
     };
 
@@ -450,9 +469,10 @@ pub async fn change_password(
         }))),
         Err(e) => {
             eprintln!("Erro ao alterar senha: {:?}", e);
-            Ok(HttpResponse::InternalServerError().json(serde_json::json!({
-                "error": "Erro ao alterar senha"
-            })))
+            Ok(internal_server_error(
+                "Erro ao alterar senha",
+                "DATABASE_ERROR",
+            ))
         }
     }
 }
@@ -468,9 +488,10 @@ pub async fn delete_user(
     // Extrair claims do token JWT e verificar se é admin
     if let Some(claims) = get_claims_from_http_request(&req) {
         if !claims.is_admin() {
-            return Ok(HttpResponse::Forbidden().json(serde_json::json!({
-                "error": "Acesso negado. Apenas administradores podem deletar usuários."
-            })));
+            return Ok(forbidden_error(
+                "Acesso negado. Apenas administradores podem deletar usuários.",
+                "ADMIN_REQUIRED",
+            ));
         }
     }
 
@@ -483,15 +504,14 @@ pub async fn delete_user(
     let _user = match user_exists {
         Ok(Some(user)) => user,
         Ok(None) => {
-            return Ok(HttpResponse::NotFound().json(serde_json::json!({
-                "error": "Usuário não encontrado"
-            })));
+            return Ok(not_found_error("Usuário não encontrado", "USER_NOT_FOUND"));
         }
         Err(e) => {
             eprintln!("Erro ao buscar usuário: {:?}", e);
-            return Ok(HttpResponse::InternalServerError().json(serde_json::json!({
-                "error": "Erro interno do servidor"
-            })));
+            return Ok(internal_server_error(
+                "Erro interno do servidor",
+                "DATABASE_ERROR",
+            ));
         }
     };
 
@@ -507,9 +527,10 @@ pub async fn delete_user(
         }))),
         Err(e) => {
             eprintln!("Erro ao deletar usuário: {:?}", e);
-            Ok(HttpResponse::InternalServerError().json(serde_json::json!({
-                "error": "Erro ao deletar usuário"
-            })))
+            Ok(internal_server_error(
+                "Erro ao deletar usuário",
+                "DATABASE_ERROR",
+            ))
         }
     }
 }
@@ -521,9 +542,10 @@ pub async fn get_current_user(pool: web::Data<PgPool>, req: HttpRequest) -> Resu
         let user_id = match claims.get_user_id() {
             Ok(id) => id,
             Err(_) => {
-                return Ok(HttpResponse::BadRequest().json(serde_json::json!({
-                    "error": "ID de usuário inválido no token"
-                })));
+                return Ok(bad_request_error(
+                    "ID de usuário inválido no token",
+                    "INVALID_USER_ID",
+                ));
             }
         };
 
@@ -537,20 +559,20 @@ pub async fn get_current_user(pool: web::Data<PgPool>, req: HttpRequest) -> Resu
                 let user_response = UserResponse::from(user);
                 Ok(HttpResponse::Ok().json(user_response))
             }
-            Ok(None) => Ok(HttpResponse::NotFound().json(serde_json::json!({
-                "error": "Usuário não encontrado"
-            }))),
+            Ok(None) => Ok(not_found_error("Usuário não encontrado", "USER_NOT_FOUND")),
             Err(e) => {
                 eprintln!("Erro ao buscar usuário atual: {:?}", e);
-                Ok(HttpResponse::InternalServerError().json(serde_json::json!({
-                    "error": "Erro interno do servidor"
-                })))
+                Ok(internal_server_error(
+                    "Erro interno do servidor",
+                    "DATABASE_ERROR",
+                ))
             }
         }
     } else {
-        Ok(HttpResponse::Unauthorized().json(serde_json::json!({
-            "error": "Token JWT não encontrado"
-        })))
+        Ok(unauthorized_error(
+            "Token JWT não encontrado",
+            "TOKEN_MISSING",
+        ))
     }
 }
 

@@ -3,6 +3,7 @@ use bcrypt::verify;
 use chrono::{Duration, Utc};
 use sqlx::PgPool;
 
+use crate::middleware::{internal_server_error, unauthorized_error};
 use crate::models::{Claims, JwtConfig, LoginRequest, LoginResponse, User, UserResponse};
 
 pub async fn login(
@@ -19,15 +20,17 @@ pub async fn login(
     let user = match user {
         Ok(Some(user)) => user,
         Ok(None) => {
-            return Ok(HttpResponse::Unauthorized().json(serde_json::json!({
-                "error": "Credenciais inválidas"
-            })));
+            return Ok(unauthorized_error(
+                "Credenciais inválidas",
+                "INVALID_CREDENTIALS",
+            ));
         }
         Err(e) => {
             eprintln!("Erro ao buscar usuário: {:?}", e);
-            return Ok(HttpResponse::InternalServerError().json(serde_json::json!({
-                "error": "Erro interno do servidor"
-            })));
+            return Ok(internal_server_error(
+                "Erro interno do servidor",
+                "DATABASE_ERROR",
+            ));
         }
     };
 
@@ -36,16 +39,18 @@ pub async fn login(
         Ok(valid) => valid,
         Err(e) => {
             eprintln!("Erro ao verificar senha: {:?}", e);
-            return Ok(HttpResponse::InternalServerError().json(serde_json::json!({
-                "error": "Erro interno do servidor"
-            })));
+            return Ok(internal_server_error(
+                "Erro interno do servidor",
+                "PASSWORD_VERIFICATION_ERROR",
+            ));
         }
     };
 
     if !password_valid {
-        return Ok(HttpResponse::Unauthorized().json(serde_json::json!({
-            "error": "Credenciais inválidas"
-        })));
+        return Ok(unauthorized_error(
+            "Credenciais inválidas",
+            "INVALID_CREDENTIALS",
+        ));
     }
 
     // Gerar JWT token
@@ -61,9 +66,10 @@ pub async fn login(
         Ok(token) => token,
         Err(e) => {
             eprintln!("Erro ao gerar token: {:?}", e);
-            return Ok(HttpResponse::InternalServerError().json(serde_json::json!({
-                "error": "Erro interno do servidor"
-            })));
+            return Ok(internal_server_error(
+                "Erro interno do servidor",
+                "TOKEN_GENERATION_ERROR",
+            ));
         }
     };
 
@@ -91,9 +97,7 @@ pub async fn verify_token(
     match jwt_config.verify_token(&token) {
         Ok(claims) => {
             if claims.is_expired() {
-                return Ok(HttpResponse::Unauthorized().json(serde_json::json!({
-                    "error": "Token expirado"
-                })));
+                return Ok(unauthorized_error("Token expirado", "TOKEN_EXPIRED"));
             }
 
             Ok(HttpResponse::Ok().json(serde_json::json!({
@@ -107,9 +111,7 @@ pub async fn verify_token(
         }
         Err(e) => {
             eprintln!("Erro ao verificar token: {:?}", e);
-            Ok(HttpResponse::Unauthorized().json(serde_json::json!({
-                "error": "Token inválido"
-            })))
+            Ok(unauthorized_error("Token inválido", "INVALID_TOKEN"))
         }
     }
 }
@@ -143,17 +145,19 @@ pub async fn refresh_token(
                 }
                 Err(e) => {
                     eprintln!("Erro ao gerar novo token: {:?}", e);
-                    Ok(HttpResponse::InternalServerError().json(serde_json::json!({
-                        "error": "Erro interno do servidor"
-                    })))
+                    Ok(internal_server_error(
+                        "Erro interno do servidor",
+                        "TOKEN_GENERATION_ERROR",
+                    ))
                 }
             }
         }
         Err(e) => {
             eprintln!("Erro ao verificar token para refresh: {:?}", e);
-            Ok(HttpResponse::Unauthorized().json(serde_json::json!({
-                "error": "Token inválido para refresh"
-            })))
+            Ok(unauthorized_error(
+                "Token inválido para refresh",
+                "INVALID_REFRESH_TOKEN",
+            ))
         }
     }
 }
